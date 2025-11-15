@@ -1,28 +1,29 @@
 "use client";
 
 import clsx from "clsx";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase-client";
-import { type CocktailIngredientRecord, type CocktailRecord, COCKTAIL_TYPE_COLORS } from "@/types/cocktail";
+import { COCKTAIL_TYPE_COLORS } from "@/types/cocktail";
 import { describeError } from "@/lib/error-utils";
 import { StatusToast, type StatusToastState } from "@/components/StatusToast";
 import { Spinner } from "@/components/Spinner";
-
-type CocktailWithRelations = CocktailRecord & {
-  cocktail_ingredients: CocktailIngredientRecord[];
-};
+import { useCocktailCache, type CocktailWithRelations } from "@/lib/cocktail-cache";
+import { CocktailModal } from "@/components/CocktailModal";
+import { CocktailEditor } from "@/components/CocktailEditor";
 
 export function CocktailBoard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
-  const [cocktails, setCocktails] = useState<CocktailWithRelations[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { cocktails, loading, refreshCocktails } = useCocktailCache();
   const [search, setSearch] = useState("");
   const [manageMode, setManageMode] = useState(false);
   const [feedback, setFeedback] = useState<StatusToastState | null>(null);
+  const [viewingCocktail, setViewingCocktail] = useState<string | null>(null);
+  const [editingCocktail, setEditingCocktail] = useState<string | null>(null);
+  const [creatingCocktail, setCreatingCocktail] = useState(false);
   
   // Sync manageMode with URL parameter
   useEffect(() => {
@@ -44,69 +45,7 @@ export function CocktailBoard() {
     });
   }, [cocktails, search]);
 
-  const loadData = useCallback(
-    async (withLoader = true) => {
-      try {
-        if (withLoader) {
-          setLoading(true);
-        } else {
-          setRefreshing(true);
-        }
 
-        const { data: cocktailsData, error } = await supabase
-          .from("cocktails")
-          .select(
-            `
-            id,
-            name,
-            description,
-            recipe,
-            image_url,
-            cocktail_type,
-            created_at,
-            cocktail_ingredients (
-              id,
-              detail,
-              ingredient_id,
-              ingredient:ingredients (
-                id,
-                name
-              )
-            )
-          `,
-          )
-          .order("cocktail_type", { ascending: true, nullsFirst: false })
-          .order("name", { ascending: true });
-
-        if (error) throw error;
-
-        setCocktails(
-          (cocktailsData ?? []).map((record) => ({
-            ...record,
-            cocktail_ingredients:
-              record.cocktail_ingredients?.map((ci) => ({
-                ...ci,
-                ingredient: Array.isArray(ci.ingredient) ? ci.ingredient[0] : ci.ingredient,
-              })) ?? [],
-          })) as CocktailWithRelations[],
-        );
-      } catch (error) {
-        console.error(error);
-        setFeedback({
-          type: "error",
-          message: `Supabase gaf een foutmelding: ${describeError(error)}`,
-        });
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [supabase],
-  );
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
 
   useEffect(() => {
     if (!feedback) return;
@@ -123,7 +62,7 @@ export function CocktailBoard() {
     try {
       await supabase.from("cocktail_ingredients").delete().eq("cocktail_id", cocktailId);
       await supabase.from("cocktails").delete().eq("id", cocktailId);
-      await loadData(false);
+      await refreshCocktails();
       setFeedback({ type: "success", message: "Cocktail verwijderd." });
     } catch (error) {
       console.error(error);
@@ -173,10 +112,10 @@ export function CocktailBoard() {
                 }
               }}
               className={clsx(
-                "rounded-md border px-4 py-2 text-sm font-semibold transition-all duration-200",
+                "rounded-md border px-4 py-2 text-sm font-semibold transition-all duration-200 active:scale-95",
                 manageMode
-                  ? "border-white bg-white text-[#1b1c1f] hover:bg-gray-100"
-                  : "border-white/20 bg-transparent text-white hover:border-white/40 hover:bg-white/5",
+                  ? "border-white bg-white text-[#1b1c1f] hover:bg-gray-100 hover:scale-105"
+                  : "border-white/30 bg-transparent text-white hover:border-white/50 hover:bg-white/10",
               )}
             >
               {manageMode ? "Stop bewerken" : "Bewerken"}
@@ -184,7 +123,7 @@ export function CocktailBoard() {
             {manageMode ? (
               <button
                 type="button"
-                onClick={() => router.push("/cocktails/nieuw")}
+                onClick={() => setCreatingCocktail(true)}
                 className="rounded-md bg-[#c62828] px-4 py-2 text-sm font-semibold transition-all duration-200 hover:bg-[#d32f2f] hover:scale-105 animate-slideUp"
               >
                 Nieuwe cocktail
@@ -193,7 +132,7 @@ export function CocktailBoard() {
           </div>
         </header>
 
-        <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-[#202226] p-4 md:flex-row md:items-center">
+        <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-[#202226] p-4 md:flex-row md:items-end md:gap-4">
           <label className="flex flex-1 flex-col gap-2">
             <span className="text-xs uppercase tracking-[0.3em] text-white/50">
               Zoeken
@@ -206,15 +145,7 @@ export function CocktailBoard() {
               onChange={(event) => setSearch(event.target.value)}
             />
           </label>
-          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-white/50">
-            {refreshing && (
-              <div className="animate-spin">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              </div>
-            )}
+          <div className="flex items-center justify-center px-3 py-2 text-xs uppercase tracking-wide text-white/50 md:pb-[7px]">
             <span>{filteredCocktails.length} {search ? 'gevonden' : 'totaal'}</span>
           </div>
         </div>
@@ -239,8 +170,8 @@ export function CocktailBoard() {
                   <CocktailCard
                     cocktail={cocktail}
                     manageMode={manageMode}
-                    onSelect={() => router.push(`/cocktails/${cocktail.id}`)}
-                    onEdit={() => router.push(`/cocktails/${cocktail.id}/bewerk`)}
+                    onSelect={() => setViewingCocktail(cocktail.id)}
+                    onEdit={() => setEditingCocktail(cocktail.id)}
                     onDelete={() => handleDelete(cocktail.id)}
                   />
                 </div>
@@ -251,6 +182,23 @@ export function CocktailBoard() {
       </div>
 
       {feedback ? <StatusToast status={feedback} /> : null}
+      
+      {/* View Cocktail Modal */}
+      {viewingCocktail && <ViewCocktailModal cocktailId={viewingCocktail} onClose={() => setViewingCocktail(null)} />}
+      
+      {/* Edit Cocktail Modal */}
+      {editingCocktail && (
+        <CocktailModal maxWidth="2xl" onClose={() => setEditingCocktail(null)}>
+          <CocktailEditor mode="edit" cocktailId={editingCocktail} onSuccess={() => setEditingCocktail(null)} />
+        </CocktailModal>
+      )}
+      
+      {/* Create Cocktail Modal */}
+      {creatingCocktail && (
+        <CocktailModal maxWidth="2xl" onClose={() => setCreatingCocktail(false)}>
+          <CocktailEditor mode="create" onSuccess={() => setCreatingCocktail(false)} />
+        </CocktailModal>
+      )}
     </div>
   );
 }
@@ -270,7 +218,7 @@ const CocktailCard = ({ cocktail, manageMode, onSelect, onEdit, onDelete }: Cock
 
   return (
     <div
-      className="group relative flex h-32 flex-col justify-between rounded-md border border-black/20 px-3 py-3 text-white shadow-[0_6px_12px_rgba(0,0,0,.35)] transition-all duration-200 hover:scale-105 hover:shadow-[0_12px_24px_rgba(0,0,0,.45)] hover:border-white/40 cursor-pointer animate-slideUp"
+      className="group relative flex h-32 flex-col justify-between rounded-lg border border-black/20 px-3 py-3 text-white shadow-[0_4px_12px_rgba(0,0,0,.25)] transition-all duration-200 hover:scale-105 hover:shadow-[0_8px_24px_rgba(0,0,0,.35)] hover:border-white/30 cursor-pointer animate-slideUp"
       style={{ backgroundColor: cardColor }}
       onClick={onSelect}
     >
@@ -287,7 +235,7 @@ const CocktailCard = ({ cocktail, manageMode, onSelect, onEdit, onDelete }: Cock
         <div className="absolute right-3 top-3 flex gap-2 text-xs font-semibold">
           <button
             type="button"
-            className="rounded-sm bg-white/80 px-2 py-1 text-[#1b1c1f] hover:bg-white transition"
+            className="rounded bg-white/90 px-2 py-1 text-[#1b1c1f] hover:bg-white transition-all duration-150 active:scale-95 shadow-md"
             onClick={(event) => {
               event.stopPropagation();
               onEdit();
@@ -297,7 +245,7 @@ const CocktailCard = ({ cocktail, manageMode, onSelect, onEdit, onDelete }: Cock
           </button>
           <button
             type="button"
-            className="rounded-sm bg-[#b3261e] px-2 py-1 hover:bg-[#d32f2f] transition"
+            className="rounded bg-[#c62828] px-2 py-1 hover:bg-[#d32f2f] transition-all duration-150 active:scale-95 shadow-md"
             onClick={(event) => {
               event.stopPropagation();
               onDelete();
@@ -310,4 +258,135 @@ const CocktailCard = ({ cocktail, manageMode, onSelect, onEdit, onDelete }: Cock
     </div>
   );
 };
+
+type ViewCocktailModalProps = {
+  cocktailId: string;
+  onClose: () => void;
+};
+
+function ViewCocktailModal({ cocktailId, onClose }: ViewCocktailModalProps) {
+  const { getCocktailById } = useCocktailCache();
+  const cocktail = getCocktailById(cocktailId);
+
+  if (!cocktail) {
+    return (
+      <CocktailModal maxWidth="md" onClose={onClose}>
+        <div className="text-center py-10 animate-fadeIn">
+          <h1 className="text-2xl font-semibold mb-2">Cocktail niet gevonden</h1>
+          <p className="text-white/60 mb-6">Deze cocktail bestaat niet of is verwijderd.</p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-white/30 px-4 py-2 text-sm transition-all duration-200 hover:bg-white/10"
+          >
+            Sluiten
+          </button>
+        </div>
+      </CocktailModal>
+    );
+  }
+
+  return (
+    <CocktailModal maxWidth="4xl" onClose={onClose} showCloseButton={false}>
+      <div className="mb-6 animate-slideUp">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold pr-4">{cocktail.name}</h2>
+            {cocktail.cocktail_type ? (
+              <div className="flex items-center gap-2 mt-2">
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: COCKTAIL_TYPE_COLORS[cocktail.cocktail_type] }}
+                />
+                <span className="text-sm text-white/60">{cocktail.cocktail_type}</span>
+              </div>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 text-white/70 transition hover:border-white/40 hover:bg-white/10 hover:text-white"
+            aria-label="Sluiten"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2 animate-slideUp">
+        <div className="space-y-4">
+          <div className="relative h-60 sm:h-72 w-full overflow-hidden rounded-md border border-white/10 bg-black/20 transition-all duration-300 hover:border-white/20">
+            {cocktail.image_url ? (
+              <Image
+                src={cocktail.image_url}
+                alt={cocktail.name}
+                fill
+                className="object-cover transition-transform duration-500 hover:scale-105"
+                unoptimized
+              />
+            ) : (
+              <div
+                className="flex h-full w-full items-center justify-center text-white/50"
+                style={{ 
+                  backgroundColor: cocktail.cocktail_type 
+                    ? COCKTAIL_TYPE_COLORS[cocktail.cocktail_type] 
+                    : COCKTAIL_TYPE_COLORS["Other"]
+                }}
+              >
+                Geen afbeelding
+              </div>
+            )}
+          </div>
+          {cocktail.description ? (
+            <div>
+              <h3 className="text-xs uppercase tracking-[0.3em] text-white/50 mb-2">Beschrijving</h3>
+              <p className="text-sm text-white/80 leading-relaxed">{cocktail.description}</p>
+            </div>
+          ) : null}
+        </div>
+        
+        <div className="space-y-4">
+          {cocktail.cocktail_ingredients.length ? (
+            <div>
+              <h3 className="text-xs uppercase tracking-[0.3em] text-white/50 mb-3">Ingrediënten</h3>
+              <ul className="space-y-2 text-sm">
+                {cocktail.cocktail_ingredients.map((row) => (
+                  <li
+                    key={row.id}
+                    className="flex items-center justify-between rounded-md border border-white/10 bg-[#202226] px-4 py-3 transition-all duration-200 hover:bg-[#252830] hover:border-white/20"
+                  >
+                    <span className="font-semibold">{row.ingredient?.name}</span>
+                    {row.detail ? <span className="text-white/70">{row.detail}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          
+          {cocktail.recipe ? (
+            <div>
+              <h3 className="text-xs uppercase tracking-[0.3em] text-white/50 mb-3">Bereiding</h3>
+              <div className="whitespace-pre-line rounded-md border border-white/10 bg-[#202226] p-4 text-sm leading-relaxed text-white/80 transition-all duration-200 hover:bg-[#252830] hover:border-white/20">
+                {cocktail.recipe}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </CocktailModal>
+  );
+}
 

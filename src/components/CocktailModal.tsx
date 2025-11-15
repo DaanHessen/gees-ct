@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 type CocktailModalProps = {
   children: ReactNode;
@@ -27,13 +27,17 @@ export function CocktailModal({
   maxWidth = "3xl" 
 }: CocktailModalProps) {
   const router = useRouter();
+  const [isClosing, setIsClosing] = useState(false);
 
   const handleClose = () => {
-    if (onClose) {
-      onClose();
-    } else {
-      router.back();
-    }
+    setIsClosing(true);
+    setTimeout(() => {
+      if (onClose) {
+        onClose();
+      } else {
+        router.back();
+      }
+    }, 200); // Match animation duration
   };
 
   // Handle ESC key press
@@ -50,11 +54,11 @@ export function CocktailModal({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4 py-6 animate-fadeIn overflow-y-auto"
+      className={`fixed inset-0 z-50 flex items-center justify-center px-4 py-6 overflow-y-auto bg-gradient-to-br from-[#1b1c1f]/95 via-[#1b1c1f]/90 to-[#25262a]/95 transition-opacity duration-200 ${isClosing ? 'opacity-0' : 'opacity-100 animate-fadeIn'}`}
       onClick={handleClose}
     >
       <div 
-        className={`w-full ${maxWidthClasses[maxWidth]} rounded-xl border border-white/10 bg-[#1b1c1f] p-6 text-white shadow-2xl animate-scaleIn my-auto`}
+        className={`w-full ${maxWidthClasses[maxWidth]} rounded-xl border border-white/10 bg-[#1b1c1f] p-6 text-white shadow-2xl my-auto transition-all duration-200 ${isClosing ? 'scale-95 opacity-0' : 'animate-scaleIn'}`}
         onClick={(e) => e.stopPropagation()}
       >
         {showCloseButton && (

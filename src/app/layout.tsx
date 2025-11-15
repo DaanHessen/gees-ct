@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Grotesk } from "next/font/google";
+import { CocktailCacheProvider } from "@/lib/cocktail-cache";
 import "./globals.css";
 
 const gees = Space_Grotesk({
@@ -20,7 +21,9 @@ export default function RootLayout({
   }>) {
   return (
     <html lang="en">
-      <body className={`${gees.variable} antialiased`}>{children}</body>
+      <body className={`${gees.variable} antialiased`}>
+        <CocktailCacheProvider>{children}</CocktailCacheProvider>
+      </body>
     </html>
   );
 }

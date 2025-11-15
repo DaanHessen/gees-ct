@@ -6,8 +6,6 @@ import { getSupabaseBrowserClient } from "@/lib/supabase-client";
 import {
   blankCocktailForm,
   type CocktailFormState,
-  type CocktailIngredientRecord,
-  type CocktailRecord,
   type IngredientRecord,
   type CocktailType,
   COCKTAIL_TYPE_COLORS,
@@ -15,23 +13,21 @@ import {
 import { describeError } from "@/lib/error-utils";
 import { Spinner } from "@/components/Spinner";
 import { StatusToast, type StatusToastState } from "@/components/StatusToast";
-
-type CocktailWithRelations = CocktailRecord & {
-  cocktail_ingredients: CocktailIngredientRecord[];
-};
+import { useCocktailCache } from "@/lib/cocktail-cache";
 
 type CocktailEditorProps = {
   mode: "create" | "edit";
   cocktailId?: string;
+  onSuccess?: () => void;
 };
 
 const ingredientDatalistId = "ingredient-suggestions";
 
-export function CocktailEditor({ mode, cocktailId }: CocktailEditorProps) {
+export function CocktailEditor({ mode, cocktailId, onSuccess }: CocktailEditorProps) {
   const router = useRouter();
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
+  const { refreshCocktails, getCocktailById, loading: cacheLoading } = useCocktailCache();
   const [formState, setFormState] = useState<CocktailFormState>(blankCocktailForm);
-  const [loading, setLoading] = useState(mode === "edit");
   const [saving, setSaving] = useState(false);
   const [allIngredients, setAllIngredients] = useState<IngredientRecord[]>([]);
   const [feedback, setFeedback] = useState<StatusToastState | null>(null);
@@ -72,36 +68,11 @@ export function CocktailEditor({ mode, cocktailId }: CocktailEditorProps) {
     setAllIngredients(data ?? []);
   }, [supabase]);
 
-  const loadCocktail = useCallback(async () => {
-    if (mode !== "edit" || !cocktailId) return;
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("cocktails")
-        .select(
-          `
-          id,
-          name,
-          description,
-          recipe,
-          image_url,
-          cocktail_type,
-          cocktail_ingredients (
-            id,
-            detail,
-            ingredient_id,
-            ingredient:ingredients (
-              id,
-              name
-            )
-          )
-        `,
-        )
-        .eq("id", cocktailId)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (!data) {
+  // Load cocktail from cache when editing
+  useEffect(() => {
+    if (mode === "edit" && cocktailId && !cacheLoading) {
+      const record = getCocktailById(cocktailId);
+      if (!record) {
         setFeedback({
           type: "error",
           message: "Cocktail niet gevonden.",
@@ -109,7 +80,6 @@ export function CocktailEditor({ mode, cocktailId }: CocktailEditorProps) {
         return;
       }
 
-      const record = data as unknown as CocktailWithRelations;
       setFormState({
         name: record.name,
         description: record.description ?? "",
@@ -128,24 +98,12 @@ export function CocktailEditor({ mode, cocktailId }: CocktailEditorProps) {
             },
           ],
       });
-    } catch (error) {
-      console.error(error);
-      setFeedback({
-        type: "error",
-        message: `Kon cocktail niet laden: ${describeError(error)}`,
-      });
-    } finally {
-      setLoading(false);
     }
-  }, [cocktailId, mode, supabase]);
+  }, [mode, cocktailId, getCocktailById, cacheLoading]);
 
   useEffect(() => {
     loadIngredients();
   }, [loadIngredients]);
-
-  useEffect(() => {
-    loadCocktail();
-  }, [loadCocktail]);
 
   useEffect(() => {
     if (!feedback) return;
@@ -243,17 +201,29 @@ export function CocktailEditor({ mode, cocktailId }: CocktailEditorProps) {
         }
       }
 
+      // Refresh the cache with updated data
+      await refreshCocktails();
+      
       setFeedback({
         type: "success",
         message: mode === "edit" ? "Cocktail bijgewerkt." : "Cocktail opgeslagen.",
       });
       
-      // For new cocktails, stay in manage mode. For edits, go back to normal view
-      if (mode === "edit") {
-        router.push("/");
-      } else {
+      // Reset form for create mode
+      if (mode === "create") {
         setFormState(blankCocktailForm);
-        router.push("/?manage=true");
+      }
+      
+      // Call onSuccess callback if provided (for modal close)
+      if (onSuccess) {
+        setTimeout(() => onSuccess(), 500); // Small delay to show success message
+      } else {
+        // Fallback to router navigation if no callback
+        if (mode === "edit") {
+          router.push("/");
+        } else {
+          router.push("/?manage=true");
+        }
       }
     } catch (error) {
       console.error(error);
@@ -280,7 +250,7 @@ export function CocktailEditor({ mode, cocktailId }: CocktailEditorProps) {
           </div>
         </header>
 
-        {loading ? (
+        {cacheLoading && mode === "edit" ? (
           <div className="flex items-center justify-center py-20">
             <Spinner />
           </div>
