@@ -21,8 +21,13 @@ export function CocktailBoard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
-  const [manageMode, setManageMode] = useState(searchParams.get("manage") === "true");
+  const [manageMode, setManageMode] = useState(false);
   const [feedback, setFeedback] = useState<StatusToastState | null>(null);
+  
+  // Sync manageMode with URL parameter
+  useEffect(() => {
+    setManageMode(searchParams.get("manage") === "true");
+  }, [searchParams]);
 
   const filteredCocktails = useMemo(() => {
     if (!search.trim()) return cocktails;
@@ -148,18 +153,25 @@ export function CocktailBoard() {
   return (
     <div className="min-h-screen bg-[#1b1c1f] pb-24 text-white">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pt-8">
-        <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-fadeIn">
           <div className="space-y-1">
             <p className="text-xs uppercase tracking-[0.4em] text-white/40">GEES</p>
-            <h1 className="text-3xl font-semibold">cocktails</h1>
+            <h1 className="text-3xl font-semibold">Cocktails</h1>
             <p className="text-sm text-white/70">
-              recepten voor cocktails
+              {cocktails.length} {cocktails.length === 1 ? 'recept' : 'recepten'} beschikbaar
             </p>
           </div>
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => setManageMode((prev) => !prev)}
+              onClick={() => {
+                const newMode = !manageMode;
+                if (newMode) {
+                  router.push("/?manage=true");
+                } else {
+                  router.push("/");
+                }
+              }}
               className={clsx(
                 "rounded-md border px-4 py-2 text-sm font-semibold transition-all duration-200",
                 manageMode
@@ -194,8 +206,16 @@ export function CocktailBoard() {
               onChange={(event) => setSearch(event.target.value)}
             />
           </label>
-          <div className="text-xs uppercase tracking-wide text-white/50">
-            {refreshing ? "Synchroniseren…" : `${cocktails.length} cocktails`}
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-white/50">
+            {refreshing && (
+              <div className="animate-spin">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </div>
+            )}
+            <span>{filteredCocktails.length} {search ? 'gevonden' : 'totaal'}</span>
           </div>
         </div>
 

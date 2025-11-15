@@ -50,11 +50,11 @@ export function CocktailModal({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4 py-6 animate-fadeIn overflow-y-auto"
       onClick={handleClose}
     >
       <div 
-        className={`w-full ${maxWidthClasses[maxWidth]} rounded-xl border border-white/10 bg-[#1b1c1f] p-6 text-white shadow-2xl animate-scaleIn`}
+        className={`w-full ${maxWidthClasses[maxWidth]} rounded-xl border border-white/10 bg-[#1b1c1f] p-6 text-white shadow-2xl animate-scaleIn my-auto`}
         onClick={(e) => e.stopPropagation()}
       >
         {showCloseButton && (

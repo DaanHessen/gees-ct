@@ -247,9 +247,14 @@ export function CocktailEditor({ mode, cocktailId }: CocktailEditorProps) {
         type: "success",
         message: mode === "edit" ? "Cocktail bijgewerkt." : "Cocktail opgeslagen.",
       });
-      setFormState(blankCocktailForm);
-      // Navigate back to home with manageMode=true to stay in edit mode
-      router.push("/?manage=true");
+      
+      // For new cocktails, stay in manage mode. For edits, go back to normal view
+      if (mode === "edit") {
+        router.push("/");
+      } else {
+        setFormState(blankCocktailForm);
+        router.push("/?manage=true");
+      }
     } catch (error) {
       console.error(error);
       setFeedback({
@@ -350,7 +355,7 @@ export function CocktailEditor({ mode, cocktailId }: CocktailEditorProps) {
                 value={formState.description}
                 onChange={(event) => setFormState((prev) => ({ ...prev, description: event.target.value }))}
                 placeholder="Korte toelichting over smaak of service."
-                className="mt-2 min-h-[80px] w-full rounded-md border border-white/10 bg-[#202226] px-4 py-3 text-base text-white placeholder:text-white/50 transition-all duration-200 focus:outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 resize-none"
+                className="mt-2 min-h-20 w-full rounded-md border border-white/10 bg-[#202226] px-4 py-3 text-base text-white placeholder:text-white/50 transition-all duration-200 focus:outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 resize-none"
               />
             </label>
 
@@ -376,7 +381,7 @@ export function CocktailEditor({ mode, cocktailId }: CocktailEditorProps) {
                         updateIngredientRow(index, { ingredientName: event.target.value })
                       }
                       placeholder="Ingrediënt"
-                      className="flex-[2] rounded-md border border-white/10 bg-[#202226] px-4 py-3 text-base text-white placeholder:text-white/50 transition-all duration-200 focus:outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10"
+                      className="flex-2 rounded-md border border-white/10 bg-[#202226] px-4 py-3 text-base text-white placeholder:text-white/50 transition-all duration-200 focus:outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10"
                     />
                     <input
                       type="text"
@@ -406,7 +411,7 @@ export function CocktailEditor({ mode, cocktailId }: CocktailEditorProps) {
                 onChange={(event) => setFormState((prev) => ({ ...prev, recipe: event.target.value }))}
                 placeholder="1. Koel glas...
 2. Shake 10 sec..."
-                className="mt-2 min-h-[160px] w-full rounded-md border border-white/10 bg-[#202226] px-4 py-3 text-base text-white placeholder:text-white/50 transition-all duration-200 focus:outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 resize-none"
+                className="mt-2 min-h-40 w-full rounded-md border border-white/10 bg-[#202226] px-4 py-3 text-base text-white placeholder:text-white/50 transition-all duration-200 focus:outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 resize-none"
               />
             </label>
 

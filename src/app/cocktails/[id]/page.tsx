@@ -204,11 +204,10 @@ export default function ViewCocktailPage({ params }: PageProps) {
             <div>
               <h3 className="text-xs uppercase tracking-[0.3em] text-white/50 mb-3">Ingrediënten</h3>
               <ul className="space-y-2 text-sm">
-                {cocktail.cocktail_ingredients.map((row, index) => (
+                {cocktail.cocktail_ingredients.map((row) => (
                   <li
                     key={row.id}
-                    className="flex items-center justify-between rounded-md border border-white/10 bg-[#202226] px-4 py-3 transition-all duration-200 hover:bg-[#252830] hover:border-white/20 animate-slideUp"
-                    style={{ animationDelay: `${index * 50}ms` }}
+                    className="flex items-center justify-between rounded-md border border-white/10 bg-[#202226] px-4 py-3 transition-all duration-200 hover:bg-[#252830] hover:border-white/20"
                   >
                     <span className="font-semibold">{row.ingredient?.name}</span>
                     {row.detail ? <span className="text-white/70">{row.detail}</span> : null}
@@ -221,9 +220,9 @@ export default function ViewCocktailPage({ params }: PageProps) {
           {cocktail.recipe ? (
             <div>
               <h3 className="text-xs uppercase tracking-[0.3em] text-white/50 mb-3">Bereiding</h3>
-              <p className="whitespace-pre-line rounded-md border border-white/10 bg-[#202226] p-4 text-sm leading-relaxed text-white/80 transition-all duration-200 hover:bg-[#252830] hover:border-white/20">
+              <div className="whitespace-pre-line rounded-md border border-white/10 bg-[#202226] p-4 text-sm leading-relaxed text-white/80 transition-all duration-200 hover:bg-[#252830] hover:border-white/20">
                 {cocktail.recipe}
-              </p>
+              </div>
             </div>
           ) : null}
         </div>
