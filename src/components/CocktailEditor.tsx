@@ -85,7 +85,7 @@ export function CocktailEditor({ mode, cocktailId }: CocktailEditorProps) {
           description,
           recipe,
           image_url,
-          color,
+          cocktail_type,
           cocktail_ingredients (
             id,
             detail,
@@ -205,13 +205,11 @@ export function CocktailEditor({ mode, cocktailId }: CocktailEditorProps) {
     setSaving(true);
 
     try {
-      const selectedColor = COCKTAIL_TYPE_COLORS[formState.cocktailType];
       const payload = {
         name: formState.name.trim(),
         description: formState.description.trim() || null,
         recipe: formState.recipe.trim() || null,
         image_url: formState.imageUrl.trim() || null,
-        color: selectedColor,
         cocktail_type: formState.cocktailType,
       };
 

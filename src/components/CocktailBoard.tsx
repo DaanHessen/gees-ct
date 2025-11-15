@@ -57,7 +57,7 @@ export function CocktailBoard() {
             description,
             recipe,
             image_url,
-            color,
+            cocktail_type,
             created_at,
             cocktail_ingredients (
               id,
@@ -70,7 +70,8 @@ export function CocktailBoard() {
             )
           `,
           )
-          .order("created_at", { ascending: true });
+          .order("cocktail_type", { ascending: true, nullsFirst: false })
+          .order("name", { ascending: true });
 
         if (error) throw error;
 

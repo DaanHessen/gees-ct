@@ -38,7 +38,7 @@ export default function ViewCocktailPage({ params }: PageProps) {
             description,
             recipe,
             image_url,
-            color,
+            cocktail_type,
             created_at,
             cocktail_ingredients (
               id,
@@ -122,7 +122,18 @@ export default function ViewCocktailPage({ params }: PageProps) {
     <CocktailModal maxWidth="4xl" showCloseButton={false}>
       <div className="mb-6 animate-slideUp">
         <div className="flex items-start justify-between">
-          <h2 className="text-2xl font-semibold pr-4">{cocktail.name}</h2>
+          <div>
+            <h2 className="text-2xl font-semibold pr-4">{cocktail.name}</h2>
+            {cocktail.cocktail_type ? (
+              <div className="flex items-center gap-2 mt-2">
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: COCKTAIL_TYPE_COLORS[cocktail.cocktail_type] }}
+                />
+                <span className="text-sm text-white/60">{cocktail.cocktail_type}</span>
+              </div>
+            ) : null}
+          </div>
           <div className="flex gap-2 shrink-0">
             <button
               type="button"
