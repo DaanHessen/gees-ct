@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## GEES Cocktail Console
 
-## Getting Started
+A tablet-first Lightspeed POS–inspired surface for browsing, creating, editing, and deleting cocktail recipes. Cocktails are stored in Supabase, as are the reusable ingredient entries that fuel the autosuggest picker while composing new recipes.
 
-First, run the development server:
+### Project Structure
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- `src/app/page.tsx` renders the entire experience through the `CocktailBoard` component.
+- `src/components/CocktailBoard.tsx` contains the dashboard UI, CRUD flows, drawer, and modal form logic.
+- `src/lib/supabase-client.ts` instantiates the browser Supabase client; credentials live in `.env.local`.
+- `src/types/cocktail.ts` hosts the shared TypeScript shapes used by the dashboard.
+
+### Required Supabase Tables
+
+Create the following tables (or update your existing schema) before running the UI. All IDs can be UUIDs or bigints; match what you already use.
+
+#### `ingredients`
+
+| column | type | notes |
+| --- | --- | --- |
+| `id` | uuid | primary key |
+| `name` | text | unique, case-insensitive (add a unique index on `lower(name)`) |
+
+#### `cocktails`
+
+| column | type | notes |
+| --- | --- | --- |
+| `id` | uuid | primary key |
+| `name` | text | required |
+| `description` | text | optional |
+| `recipe` | text | optional |
+| `image_url` | text | optional |
+| `color` | text | optional hex string |
+| `created_at` | timestamptz | default `now()` |
+
+#### `cocktail_ingredients`
+
+| column | type | notes |
+| --- | --- | --- |
+| `id` | uuid | primary key |
+| `cocktail_id` | uuid | foreign key → `cocktails.id` (cascade delete recommended) |
+| `ingredient_id` | uuid | foreign key → `ingredients.id` |
+| `detail` | text | amount / prep notes |
+
+> Every time you add ingredients inside the modal, the UI will reuse the existing ingredient row (via case-insensitive match) or create it on the fly before linking it to the cocktail through this join table.
+
+### Environment
+
+Copy `.env.local.example` (or update `.env.local`) with:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Only `NEXT_PUBLIC_` variables are referenced so the client bundle can talk to Supabase directly.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Development
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npm run dev
+```
 
-## Learn More
+Visit `http://localhost:3000` on a tablet or in a responsive browser viewport. The dashboard:
 
-To learn more about Next.js, take a look at the following resources:
+- syncs cocktails/ingredients from Supabase,
+- lets you search by ingredient or drink,
+- offers a manage mode where cards expose edit/delete controls,
+- opens a POS-style drawer for the detail view,
+- provides a full-screen modal to create or edit cocktails, complete with ingredient autosuggest and color presets.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Deployment
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Deploy straight to Vercel—no backend hosting is needed beyond Supabase. Make sure the same environment variables and table schema exist in your production project.
