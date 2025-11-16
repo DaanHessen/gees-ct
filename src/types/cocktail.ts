@@ -44,7 +44,7 @@ export const COCKTAIL_TYPE_COLORS: Record<CocktailType, string> = {
   Punch: "#F76707", // Bright orange
   Highball: "#339AF0", // Light blue
   Shot: "#D9480F", // Red-orange
-  Other: "#6C757D", // Medium gray
+  Other: "#748FFC", // Soft blue/purple - more interesting than gray
 };
 
 export type CocktailRecord = {

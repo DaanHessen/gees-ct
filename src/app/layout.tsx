@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { Space_Grotesk } from "next/font/google";
 import { CocktailCacheProvider } from "@/lib/cocktail-cache";
+import { AuthProvider } from "@/lib/auth-context";
+import { LanguageProvider } from "@/lib/language-context";
+import { MeasurementProvider } from "@/lib/measurement-context";
+import { TeamProvider } from "@/lib/team-context";
 import "./globals.css";
 
 const gees = Space_Grotesk({
@@ -10,8 +14,8 @@ const gees = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Cocktailbeheer",
-  description: "Beheer en raadpleeg cocktailrecepten voor de bediening.",
+  title: "ctbase - Cocktail Recipe Platform",
+  description: "Manage and explore cocktail recipes. A modern solution for organizing your cocktail recipes.",
 };
 
 export default function RootLayout({
@@ -22,7 +26,17 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${gees.variable} antialiased`}>
-        <CocktailCacheProvider>{children}</CocktailCacheProvider>
+        <LanguageProvider>
+          <MeasurementProvider>
+            <AuthProvider>
+              <TeamProvider>
+                <CocktailCacheProvider>
+                  {children}
+                </CocktailCacheProvider>
+              </TeamProvider>
+            </AuthProvider>
+          </MeasurementProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

@@ -1,4 +1,4 @@
-## GEES Cocktail Console
+## ctbase - Cocktail Recipe Platform
 
 A tablet-first Lightspeed POS–inspired surface for browsing, creating, editing, and deleting cocktail recipes. Cocktails are stored in Supabase, as are the reusable ingredient entries that fuel the autosuggest picker while composing new recipes.
 

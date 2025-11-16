@@ -12,12 +12,17 @@ import { Spinner } from "@/components/Spinner";
 import { useCocktailCache, type CocktailWithRelations } from "@/lib/cocktail-cache";
 import { CocktailModal } from "@/components/CocktailModal";
 import { CocktailEditor } from "@/components/CocktailEditor";
+import { useLanguage } from "@/lib/language-context";
+import { useTeam } from "@/lib/team-context";
 
 export function CocktailBoard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const { cocktails, loading, refreshCocktails } = useCocktailCache();
+  const { t } = useLanguage();
+  const { currentRole } = useTeam();
+  const isAdmin = currentRole === "admin";
   const [search, setSearch] = useState("");
   const [manageMode, setManageMode] = useState(false);
   const [feedback, setFeedback] = useState<StatusToastState | null>(null);
@@ -27,8 +32,12 @@ export function CocktailBoard() {
   
   // Sync manageMode with URL parameter
   useEffect(() => {
+    if (!isAdmin) {
+      setManageMode(false);
+      return;
+    }
     setManageMode(searchParams.get("manage") === "true");
-  }, [searchParams]);
+  }, [searchParams, isAdmin]);
 
   const filteredCocktails = useMemo(() => {
     if (!search.trim()) return cocktails;
@@ -54,9 +63,11 @@ export function CocktailBoard() {
   }, [feedback]);
 
   const handleDelete = async (cocktailId: string) => {
-    const confirmation = window.confirm(
-      "Cocktail verwijderen?",
-    );
+    if (!isAdmin) {
+      setFeedback({ type: "error", message: t("settings.teamRestricted") });
+      return;
+    }
+    const confirmation = window.confirm("Cocktail verwijderen?");
     if (!confirmation) return;
 
     try {
@@ -91,66 +102,69 @@ export function CocktailBoard() {
 
   return (
     <div className="min-h-screen bg-[#1b1c1f] pb-24 text-white">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pt-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 pt-8">
         <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-fadeIn">
-          <div className="space-y-1">
-            <p className="text-xs uppercase tracking-[0.4em] text-white/40">GEES</p>
-            <h1 className="text-3xl font-semibold">Cocktails</h1>
-            <p className="text-sm text-white/70">
-              {cocktails.length} {cocktails.length === 1 ? 'recept' : 'recepten'} beschikbaar
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{t("board.subtitle")}</h1>
+            <p className="text-sm text-white/50 mt-1">
+              {cocktails.length} {cocktails.length === 1 ? t("board.recipe") : t("board.recipes")}
             </p>
           </div>
           <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                const newMode = !manageMode;
-                if (newMode) {
-                  router.push("/?manage=true");
-                } else {
-                  router.push("/");
-                }
-              }}
-              className={clsx(
-                "rounded-md border px-4 py-2 text-sm font-semibold transition-all duration-200 active:scale-95",
-                manageMode
-                  ? "border-white bg-white text-[#1b1c1f] hover:bg-gray-100 hover:scale-105"
-                  : "border-white/30 bg-transparent text-white hover:border-white/50 hover:bg-white/10",
-              )}
-            >
-              {manageMode ? "Stop bewerken" : "Bewerken"}
-            </button>
-            {manageMode ? (
-              <button
-                type="button"
-                onClick={() => setCreatingCocktail(true)}
-                className="rounded-md bg-[#c62828] px-4 py-2 text-sm font-semibold transition-all duration-200 hover:bg-[#d32f2f] hover:scale-105 animate-slideUp"
-              >
-                Nieuwe cocktail
-              </button>
+            {isAdmin ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newMode = !manageMode;
+                    if (newMode) {
+                      router.push("/?manage=true");
+                    } else {
+                      router.push("/");
+                    }
+                  }}
+                  className={clsx(
+                    "rounded-lg border px-4 py-2.5 text-sm font-semibold transition-all duration-150 active:scale-95",
+                    manageMode
+                      ? "border-white bg-white text-[#1b1c1f] hover:bg-gray-100 shadow-sm"
+                      : "border-white/20 bg-transparent text-white hover:border-white/40 hover:bg-white/5",
+                  )}
+                >
+                  {manageMode ? t("board.stopEditButton") : t("board.editButton")}
+                </button>
+                {manageMode ? (
+                  <button
+                    type="button"
+                    onClick={() => setCreatingCocktail(true)}
+                    className="rounded-lg bg-[#c62828] px-4 py-2.5 text-sm font-semibold transition-all duration-150 hover:bg-[#d32f2f] active:scale-95 shadow-sm animate-slideUp"
+                  >
+                    {t("board.addButton")}
+                  </button>
+                ) : null}
+              </>
             ) : null}
           </div>
         </header>
 
-        <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-[#202226] p-4 md:flex-row md:items-end md:gap-4">
+        <div className="flex flex-col gap-3 rounded-xl border border-white/5 bg-[#202226] p-4 md:flex-row md:items-end md:gap-4">
           <label className="flex flex-1 flex-col gap-2">
-            <span className="text-xs uppercase tracking-[0.3em] text-white/50">
-              Zoeken
+            <span className="text-[11px] font-bold uppercase tracking-wider text-white/60">
+              {t("board.searchLabel")}
             </span>
             <input
               type="text"
-              placeholder="Zoek cocktail"
-              className="rounded-md border border-white/10 bg-[#1b1c1f] px-3 py-2 text-sm text-white placeholder:text-white/50 transition-all duration-200 focus:outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10"
+              placeholder={t("board.searchPlaceholder")}
+              className="rounded-lg border border-white/10 bg-[#1b1c1f] px-4 py-2.5 text-sm text-white placeholder:text-white/50 transition-all duration-150 focus:outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
           </label>
-          <div className="flex items-center justify-center px-3 py-2 text-xs uppercase tracking-wide text-white/50 md:pb-[7px]">
+          <div className="flex items-center justify-center px-3 py-2 text-xs font-semibold text-white/50 md:pb-[9px]">
             <span>{filteredCocktails.length} {search ? 'gevonden' : 'totaal'}</span>
           </div>
         </div>
 
-        <section className="rounded-xl border border-white/10 bg-[#1f2024] p-4">
+        <section className="rounded-xl border border-white/5 bg-[#1f2024] p-5">
           {showEmptyState ? (
             <div className="flex flex-col items-center gap-3 py-20 text-center text-white/70 animate-fadeIn">
               <div className="rounded-full bg-white/5 p-6 mb-2">
@@ -158,15 +172,15 @@ export function CocktailBoard() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                 </svg>
               </div>
-              <p className="text-xl font-semibold">Nog geen cocktails</p>
+              <p className="text-xl font-semibold">{t("board.emptyStateTitle")}</p>
               <p className="text-sm max-w-md">
-                Gebruik de knop &quot;Bewerken&quot; om nieuwe recepten toe te voegen.
+                {t("board.emptyStateDescription")}
               </p>
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filteredCocktails.map((cocktail, index) => (
-                <div key={cocktail.id} style={{ animationDelay: `${index * 30}ms` }}>
+                <div key={cocktail.id} style={{ animationDelay: `${index * 25}ms` }}>
                   <CocktailCard
                     cocktail={cocktail}
                     manageMode={manageMode}
@@ -218,43 +232,53 @@ const CocktailCard = ({ cocktail, manageMode, onSelect, onEdit, onDelete }: Cock
 
   return (
     <div
-      className="group relative flex h-32 flex-col justify-between rounded-lg border border-black/20 px-3 py-3 text-white shadow-[0_4px_12px_rgba(0,0,0,.25)] transition-all duration-200 hover:scale-105 hover:shadow-[0_8px_24px_rgba(0,0,0,.35)] hover:border-white/30 cursor-pointer animate-slideUp"
+      className="group relative flex h-40 flex-col justify-between rounded-lg border border-black/30 px-4 py-3 shadow-[0_4px_12px_rgba(0,0,0,.25)] transition-all duration-200 hover:scale-[1.02] hover:shadow-[0_8px_24px_rgba(0,0,0,.35)] hover:border-black/50 cursor-pointer animate-slideUp"
       style={{ backgroundColor: cardColor }}
       onClick={onSelect}
     >
-      <div className="text-xs font-semibold uppercase tracking-[0.2em] text-white/75">
-        {cocktail.cocktail_ingredients?.length ?? 0} ingrediënten
-      </div>
-      <div>
-        <p className="text-lg font-bold leading-tight">{cocktail.name}</p>
-        {cocktail.description ? (
-          <p className="text-xs text-white/85 line-clamp-1">{cocktail.description}</p>
-        ) : null}
-      </div>
-      {manageMode ? (
-        <div className="absolute right-3 top-3 flex gap-2 text-xs font-semibold">
-          <button
-            type="button"
-            className="rounded bg-white/90 px-2 py-1 text-[#1b1c1f] hover:bg-white transition-all duration-150 active:scale-95 shadow-md"
-            onClick={(event) => {
-              event.stopPropagation();
-              onEdit();
-            }}
-          >
-            Bewerk
-          </button>
-          <button
-            type="button"
-            className="rounded bg-[#c62828] px-2 py-1 hover:bg-[#d32f2f] transition-all duration-150 active:scale-95 shadow-md"
-            onClick={(event) => {
-              event.stopPropagation();
-              onDelete();
-            }}
-          >
-            Verwijder
-          </button>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-col gap-0.5">
+          {cocktail.cocktail_type && (
+            <div className="text-[10px] font-bold uppercase tracking-wider text-black/60">
+              {cocktail.cocktail_type}
+            </div>
+          )}
+          <div className="text-[10px] font-semibold text-black/50">
+            {cocktail.cocktail_ingredients?.length ?? 0} ingrediënten
+          </div>
         </div>
-      ) : null}
+        {manageMode && (
+          <div className="flex gap-1.5 text-xs font-semibold">
+            <button
+              type="button"
+              className="rounded-md bg-black/80 px-2 py-1 text-white hover:bg-black transition-all duration-150 active:scale-95 shadow-md"
+              onClick={(event) => {
+                event.stopPropagation();
+                onEdit();
+              }}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              className="rounded-md bg-[#c62828] px-2 py-1 text-white hover:bg-[#d32f2f] transition-all duration-150 active:scale-95 shadow-md"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete();
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+      </div>
+      
+      <div className="flex-1 flex flex-col justify-center gap-1">
+        <p className="text-xl font-bold leading-tight text-black/90">{cocktail.name}</p>
+        {cocktail.description && (
+          <p className="text-xs font-medium text-black/70 line-clamp-2 leading-relaxed">{cocktail.description}</p>
+        )}
+      </div>
     </div>
   );
 };
@@ -389,4 +413,3 @@ function ViewCocktailModal({ cocktailId, onClose }: ViewCocktailModalProps) {
     </CocktailModal>
   );
 }
-

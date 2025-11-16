@@ -14,6 +14,7 @@ import { describeError } from "@/lib/error-utils";
 import { Spinner } from "@/components/Spinner";
 import { StatusToast, type StatusToastState } from "@/components/StatusToast";
 import { useCocktailCache } from "@/lib/cocktail-cache";
+import { ensureIngredientRecord } from "@/lib/ingredient-service";
 
 type CocktailEditorProps = {
   mode: "create" | "edit";
@@ -33,33 +34,7 @@ export function CocktailEditor({ mode, cocktailId, onSuccess }: CocktailEditorPr
   const [feedback, setFeedback] = useState<StatusToastState | null>(null);
 
   const ensureIngredient = useCallback(
-    async (name: string) => {
-      const cleaned = name.trim();
-      if (!cleaned) return null;
-
-      const { data: existing, error } = await supabase
-        .from("ingredients")
-        .select("id, name")
-        .ilike("name", cleaned)
-        .maybeSingle();
-
-      if (error && error.code !== "PGRST116") {
-        throw error;
-      }
-
-      if (existing) {
-        return existing.id;
-      }
-
-      const { data: inserted, error: insertError } = await supabase
-        .from("ingredients")
-        .insert({ name: cleaned })
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-      return inserted.id;
-    },
+    (name: string) => ensureIngredientRecord(supabase, name),
     [supabase],
   );
 
